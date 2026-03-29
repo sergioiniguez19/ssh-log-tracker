@@ -83,7 +83,6 @@ def extract_whitelist():
     return whitelist
 
 def log_event(message, type="info"):
-    # Limpiar la línea del spinner antes de imprimir
     sys.stdout.write("\r\033[K") 
     
     if type == "fail":
@@ -117,12 +116,15 @@ def sshparameters(sourceip, sourceuser, timestamp, failed_ips, invaliduser):
 
 
 def checkfailedIPs(failed_ips,sourceip):
-    fails = failed_ips.get(sourceip,[])
-    if len(fails) > 3:
-        if sourceip not in already_banned:
-            already_banned.add(sourceip) # Marcamos inmediatamente
-            log_event(f"Banning attack from IP: {sourceip}", "ban")
-            banIP(sourceip)
+    if sourceip in already_banned:
+        return
+    
+    fails = failed_ips.get(sourceip, [])
+    if len(fails) >= 3:
+        already_banned.add(sourceip) 
+        
+        log_event(f"BANNED: Banning attack from IP: {sourceip}", "ban")
+        banIP(sourceip)
     else:
         log_event(f"Attempt number {len(fails)} from {sourceip}", "info")
 
@@ -175,7 +177,7 @@ def check_if_rule_exists(sourceip):
 
 def banIP(sourceip):
     if not check_if_rule_exists(sourceip):
-        subprocess.run(["sudo", "iptables", "-t","filter","-A","INPUT","-p","tcp","--dport","22","-s",sourceip,"-j","DROP"])
+        subprocess.run(["sudo", "iptables", "-t","filter","-I","INPUT","1","-p","tcp","--dport","22","-s",sourceip,"-j","DROP"])
 
 thread1 = threading.Thread(target=extractlogs)
 
